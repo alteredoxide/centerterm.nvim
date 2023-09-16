@@ -34,12 +34,12 @@ local centerterm = require('centerterm').setup({
 ### Commands
 **`:Center`** will toggle the centering effect.</br>
 
-**Assumptions**
+_Assumptions_
 - One of the two conditions are true:
     + You have one split currently open
     + Three splits related to the centering are open and no others:
       two for side padding and one for your center view
-- You havent done anything manually to mess with the toggled boolean state that
+- You haven't done anything manually to mess with the toggled boolean state that
   indicates to the plugin whether or not centering is currently active.
 
 This means things can get weird if you violate these assumptions.
@@ -49,22 +49,24 @@ caused me any problems with my own workflow.
 **`:Vs`** will create a new vertical split of your center view, and destroy the
 two outer splits.</br>
 
-**Assumptions**
+_Assumptions_
 - Your center view is the active split when you run the command.
 - You only have your center split and the two outer/padding splits open.
-- You havent done anything manually to mess with the toggled boolean state that
-  indicates to the plugin whether or not centering is currently active.
+- See last assumption for `:Center`
 
 
 **`:Vx`** will quit the currently active vertical split and reactive the
 centering effect.</br>
 
-**Assumptions**
+_Assumptions_
 - Only two vertical splits are currently open
-- You havent done anything manually to mess with the toggled boolean state that
-  indicates to the plugin whether or not centering is currently active.
+- See last assumption for `:Center`
+
+The next couple commands aren't custom, but they are useful:
+**`:wqa`** write and quit all -- convenient to close all splits when centered.
+**`:qa`** or **`:qa!`** are the `q` and `q!` equivalents to `wqa`.
 
 ### Default Keybindings
-- _`<leader>cc`_ runs `Center`
-- _`<leader>vs`_ runs `Vs`
-- _`<leader>vx`_ runs `Vx`
+- `<leader>cc` runs `Center`
+- `<leader>vs` runs `Vs`
+- `<leader>vx` runs `Vx`
