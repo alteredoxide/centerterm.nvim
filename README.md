@@ -26,7 +26,7 @@ Add the following either to `init.lua` or `nvim/after/plugin/centerterm.lua`:
 ```lua
 local centerterm = require('centerterm').setup({
     default_keybindings = true, -- things like <leader>cc to toggle center
-    center_width = 120 -- specify pixel width of center split
+    center_width = 120 -- specify column width of center split
 })
 ```
 
