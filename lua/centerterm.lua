@@ -1,6 +1,8 @@
 local M = {}
 M.center_width = 120
 M.center_id = vim.api.nvim_get_current_win()
+M.left_id = nil
+M.right_id = nil
 
 
 local function create_blank_buffer(width)
@@ -22,12 +24,17 @@ local function create_centered_buffer(width)
   local left_buffer_width = math.floor((total_width - width) / 2)
   local right_buffer_width = total_width - width - left_buffer_width
 
+  -- left padding
   create_blank_buffer(left_buffer_width)
   vim.cmd("wincmd l")
+  M.left_id = vim.api.nvim_get_current_win()
   vim.cmd("wincmd H")
   vim.api.nvim_set_current_win(M.center_id)
+
+  -- right padding
   create_blank_buffer(right_buffer_width)
   vim.cmd("wincmd l")
+  M.right_id = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_width(0, width)
   return true
 end
@@ -39,6 +46,8 @@ function M.toggle_centered_buffer(width)
     if centered then
         vim.api.nvim_set_current_win(M.center_id)
         vim.cmd("only")
+        M.left_id = nil
+        M.right_id = nil
         centered = false
     else
         centered = create_centered_buffer(width)
