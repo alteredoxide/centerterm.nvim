@@ -1,5 +1,6 @@
 local M = {}
 M.center_width = 120
+M.center_id = vim.api.nvim_get_current_win()
 
 
 local function create_blank_buffer(width)
@@ -20,12 +21,11 @@ local function create_centered_buffer(width)
   if total_width < width + 2 then return false end
   local left_buffer_width = math.floor((total_width - width) / 2)
   local right_buffer_width = total_width - width - left_buffer_width
-  local main_win = vim.api.nvim_get_current_win()
 
   create_blank_buffer(left_buffer_width)
   vim.cmd("wincmd l")
   vim.cmd("wincmd H")
-  vim.api.nvim_set_current_win(main_win)
+  vim.api.nvim_set_current_win(M.center_id)
   create_blank_buffer(right_buffer_width)
   vim.cmd("wincmd l")
   vim.api.nvim_win_set_width(0, width)
