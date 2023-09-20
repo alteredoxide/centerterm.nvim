@@ -36,12 +36,13 @@ end
 local centered = false
 
 function M.toggle_centered_buffer(width)
-  if centered then
-    vim.cmd("only")
-    centered = false
-  else
-    centered = create_centered_buffer(width)
-  end
+    if centered then
+        vim.api.nvim_set_current_win(M.center_id)
+        vim.cmd("only")
+        centered = false
+    else
+        centered = create_centered_buffer(width)
+    end
 end
 
 
