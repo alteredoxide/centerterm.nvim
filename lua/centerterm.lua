@@ -67,6 +67,14 @@ function M.toggle_centered_buffer(width)
 end
 
 
+-- Close all windows that are not the center and re-center the main window.
+function M.close_others_and_recenter()
+    vim.api.nvim_set_current_win(M.center_id)
+    vim.cmd("only")
+    centered = false
+    M.toggle_centered_buffer(M.center_width)
+end
+
 function M.quit_vertical_split_and_toggle()
     vim.cmd("q")
     M.toggle_centered_buffer(M.center_width)
@@ -83,6 +91,8 @@ function M.set_default_keybindings()
     local bind_opts = { noremap=true, silent=true }
     -- Toggle center
     vim.keymap.set("n", "<leader>cc",  "<cmd>Center<CR>", bind_opts)
+    -- Recenter
+    vim.keymap.set("n", "<leader>rr",  "<cmd>Recenter<CR>", bind_opts)
     -- Vertical split with toggle center
     vim.keymap.set("n", "<leader>vs",  "<cmd>Vs<CR>", bind_opts)
     -- Close current split then toggle center
@@ -104,6 +114,11 @@ local function set_vim_commands()
     vim.cmd(
     "command! Center lua require('centerterm')"..
     ".toggle_centered_buffer(vim.g.centerterm_width)"
+    )
+    -- Recenter the main window after closing all others
+    vim.cmd(
+    "command! Recenter lua require('centerterm')"..
+    ".close_others_and_recenter()"
     )
     -- Create new vertical split and toggle Center
     vim.cmd(
