@@ -8,43 +8,45 @@ local centered = false
 
 
 local function create_blank_buffer(width)
-  vim.cmd("vnew")
-  vim.api.nvim_buf_set_option(0, 'buftype', 'nofile')
-  vim.api.nvim_buf_set_option(0, 'bufhidden', 'wipe')
-  vim.api.nvim_buf_set_option(0, 'swapfile', false)
-  vim.api.nvim_win_set_width(0, width)
-  vim.api.nvim_win_set_option(0, 'number', false)
-  vim.api.nvim_win_set_option(0, 'relativenumber', false)
-  vim.opt.fillchars:append("vert: ")
-  vim.opt.fillchars:append({ eob = ' ' })
+    vim.cmd("vnew")
+    vim.api.nvim_buf_set_option(0, 'buftype', 'nofile')
+    vim.api.nvim_buf_set_option(0, 'bufhidden', 'wipe')
+    vim.api.nvim_buf_set_option(0, 'swapfile', false)
+    vim.api.nvim_win_set_width(0, width)
+    vim.api.nvim_win_set_option(0, 'number', false)
+    vim.api.nvim_win_set_option(0, 'relativenumber', false)
+    vim.opt.fillchars:append("vert: ")
+    vim.opt.fillchars:append({ eob = ' ' })
 end
 
 
 local function create_centered_buffer(width)
-  local total_width = vim.o.columns
-  local left_buffer_width = math.floor((total_width - width) / 2)
-  local right_buffer_width = total_width - width - left_buffer_width
+    local total_width = vim.o.columns
+    if total_width < width + 2 then
+      return false
+    end
+    local left_buffer_width = math.floor((total_width - width) / 2)
+    local right_buffer_width = total_width - width - left_buffer_width
 
-  -- left padding
-  create_blank_buffer(left_buffer_width)
-  M.left_id = vim.api.nvim_get_current_win()
-  vim.api.nvim_set_current_win(M.center_id)
-  vim.cmd("wincmd H")
+    -- right padding
+    create_blank_buffer(left_buffer_width)
+    M.right_id = vim.api.nvim_get_current_win()
+    vim.api.nvim_set_current_win(M.center_id)
+    vim.cmd("wincmd H")
 
-  -- right padding
-  create_blank_buffer(right_buffer_width)
-  M.right_id = vim.api.nvim_get_current_win()
-  vim.api.nvim_set_current_win(M.center_id)
-  vim.api.nvim_win_set_width(0, width)
+    -- left padding
+    create_blank_buffer(right_buffer_width)
+    M.left_id = vim.api.nvim_get_current_win()
+    vim.api.nvim_set_current_win(M.center_id)
+    vim.api.nvim_win_set_width(0, width)
 
-  return true
+    return true
 end
 
 
 function M.silent_close_windows(window_ids)
     for _, win in ipairs(window_ids) do
         local _, err = pcall(function()
-            print("closing window: ", win)
             vim.api.nvim_win_close(win, false)
         end)
         if err then
