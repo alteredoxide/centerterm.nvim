@@ -4,6 +4,8 @@ M.center_id = vim.api.nvim_get_current_win()
 M.left_id = nil
 M.right_id = nil
 
+local centered = false
+
 
 local function create_blank_buffer(width)
   vim.cmd("vnew")
@@ -20,34 +22,44 @@ end
 
 local function create_centered_buffer(width)
   local total_width = vim.o.columns
-  if total_width < width + 2 then return false end
   local left_buffer_width = math.floor((total_width - width) / 2)
   local right_buffer_width = total_width - width - left_buffer_width
 
   -- left padding
   create_blank_buffer(left_buffer_width)
-  vim.cmd("wincmd l")
   M.left_id = vim.api.nvim_get_current_win()
-  vim.cmd("wincmd H")
   vim.api.nvim_set_current_win(M.center_id)
+  vim.cmd("wincmd H")
 
   -- right padding
   create_blank_buffer(right_buffer_width)
-  vim.cmd("wincmd l")
   M.right_id = vim.api.nvim_get_current_win()
+  vim.api.nvim_set_current_win(M.center_id)
   vim.api.nvim_win_set_width(0, width)
+
   return true
 end
 
 
-local centered = false
+function M.silent_close_windows(window_ids)
+    for _, win in ipairs(window_ids) do
+        local _, err = pcall(function()
+            print("closing window: ", win)
+            vim.api.nvim_win_close(win, false)
+        end)
+        if err then
+            print(win, err)
+        end
+    end
+end
+
 
 function M.toggle_centered_buffer(width)
     if centered then
-        vim.api.nvim_set_current_win(M.center_id)
-        vim.cmd("only")
+        M.silent_close_windows({M.left_id, M.right_id})
         M.left_id = nil
         M.right_id = nil
+        vim.api.nvim_set_current_win(M.center_id)
         centered = false
     else
         centered = create_centered_buffer(width)
