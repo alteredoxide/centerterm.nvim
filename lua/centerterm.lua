@@ -80,14 +80,29 @@ local function create_centered_buffer(width)
 end
 
 
-function M.silent_close_windows(window_ids)
-    for _, win in ipairs(window_ids) do
-        local _, err = pcall(function()
-            vim.api.nvim_win_close(win, false)
-        end)
-        if err then
-            print(win, err)
+local function silent_close_window(win_id, force)
+    force = force or false
+    local _, err = pcall(function()
+        -- Using set current followed by cmd because it provides the
+        -- desired behavior of closing out nvim if it's the last window;
+        -- this enables ability to quit nvim without the `a` in `:[w]qa`
+        -- when the window a user is quitting is the last non-padding win.
+        vim.api.nvim_set_current_win(win_id)
+        if force then
+            vim.cmd("q!")
+        else
+            vim.cmd("q")
         end
+    end)
+    if err then
+        print(win_id, err)
+    end
+end
+
+
+function M.silent_close_windows(window_ids, force)
+    for _, win_id in ipairs(window_ids) do
+        silent_close_window(win_id, force)
     end
 end
 
@@ -120,32 +135,31 @@ end
 -- recenter all content
 function M.recenter()
     M.centering = true
-    if M.left_id ~= nil then
-        vim.api.nvim_set_current_win(M.left_id)
-        vim.cmd("q")
-        M.left_id = nil
-    end
-    if M.right_id ~= nil then
-        vim.api.nvim_set_current_win(M.right_id)
-        vim.cmd("q")
-        M.right_id = nil
-    end
+    M.silent_close_windows({M.left_id, M.right_id})
+    M.left_id = nil
+    M.right_id = nil
     M.centered = false
     M.toggle_center(M.center_width)
     M.centering = false
 end
 
 
+local function get_win_width(win_id)
+    if win_id == nil then
+        return 0
+    end
+    local ok, result = pcall(vim.api.nvim_win_get_width, win_id)
+    if ok then
+        return result
+    end
+    return 0
+end
+
+
 local function get_centered_width()
     local total_width = vim.o.columns
-    local left_width = 0
-    local right_width = 0
-    if M.left_id ~= nil then
-        left_width = vim.api.nvim_win_get_width(M.left_id)
-    end
-    if M.right_id ~= nil then
-        right_width = vim.api.nvim_win_get_width(M.right_id)
-    end
+    local left_width = get_win_width(M.left_id)
+    local right_width = get_win_width(M.right_id)
     return total_width - (left_width + right_width)
 end
 
@@ -201,7 +215,7 @@ local function set_vim_commands()
     -- Recenter the main window after closing all others
     vim.cmd(
     "command! Recenter lua require('centerterm')"..
-    ".close_others_and_recenter()"
+    ".recenter()"
     )
     -- Create new vertical split and toggle Center
     vim.cmd(
