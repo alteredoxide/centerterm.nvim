@@ -8,6 +8,42 @@ M.centering = false
 M.centered = false
 
 
+local function is_padding_win(win)
+    if win == M.left_id or win == M.right_id then
+        return true
+    else
+        return false
+    end
+end
+
+
+-- return the first win id that is not one of the padding windows
+local function get_first_non_padding_win()
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if not is_padding_win(win) then
+            return win
+        end
+    end
+end
+
+
+function M.set_current_as_main()
+    M.main_id = vim.api.nvim_get_current_win()
+end
+
+
+function M.get_main()
+    if M.main_id ~= nil then
+        for _, win in ipairs(vim.api.nvim_list_wins()) do
+            if win == M.main_id then
+                return M.main_id
+            end
+        end
+    end
+    M.main_id = get_first_non_padding_win()
+    return M.main_id
+end
+
 
 local function create_blank_buffer(pos)
     vim.cmd("vnew")
@@ -38,7 +74,7 @@ local function create_centered_buffer(width)
 
     vim.api.nvim_win_set_width(M.right_id, right_buffer_width)
     vim.api.nvim_win_set_width(M.left_id, left_buffer_width)
-    vim.api.nvim_set_current_win(M.main_id)
+    vim.api.nvim_set_current_win(M.get_main())
 
     return true
 end
@@ -61,7 +97,7 @@ function M.toggle_center(width)
         M.silent_close_windows({M.left_id, M.right_id})
         M.left_id = nil
         M.right_id = nil
-        vim.api.nvim_set_current_win(M.main_id)
+        vim.api.nvim_set_current_win(M.get_main())
         M.centered = false
     else
         M.centered = create_centered_buffer(width)
@@ -176,6 +212,11 @@ local function set_vim_commands()
     vim.cmd(
     "command! Vx lua require('centerterm')"..
     ".quit_vertical_split_and_toggle()"
+    )
+    -- Set current window as main
+    vim.cmd(
+    "command! CenterSet lua require('centerterm')"..
+    ".set_current_as_main()"
     )
 end
 
