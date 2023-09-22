@@ -1,22 +1,25 @@
 local M = {}
+M.auto_center = true
 M.center_width = 120
-M.center_id = vim.api.nvim_get_current_win()
+M.main_id = vim.api.nvim_get_current_win()
 M.left_id = nil
 M.right_id = nil
+M.centering = false
+M.centered = false
 
-local centered = false
 
 
-local function create_blank_buffer(width)
+local function create_blank_buffer(pos)
     vim.cmd("vnew")
     vim.api.nvim_buf_set_option(0, 'buftype', 'nofile')
     vim.api.nvim_buf_set_option(0, 'bufhidden', 'wipe')
     vim.api.nvim_buf_set_option(0, 'swapfile', false)
-    vim.api.nvim_win_set_width(0, width)
     vim.api.nvim_win_set_option(0, 'number', false)
     vim.api.nvim_win_set_option(0, 'relativenumber', false)
     vim.opt.fillchars:append("vert: ")
     vim.opt.fillchars:append({ eob = ' ' })
+    vim.cmd(string.format("wincmd %s", pos))
+    return vim.api.nvim_get_current_win()
 end
 
 
@@ -29,16 +32,13 @@ local function create_centered_buffer(width)
     local right_buffer_width = total_width - width - left_buffer_width
 
     -- right padding
-    create_blank_buffer(left_buffer_width)
-    M.right_id = vim.api.nvim_get_current_win()
-    vim.api.nvim_set_current_win(M.center_id)
-    vim.cmd("wincmd H")
-
+    M.right_id = create_blank_buffer("L")
     -- left padding
-    create_blank_buffer(right_buffer_width)
-    M.left_id = vim.api.nvim_get_current_win()
-    vim.api.nvim_set_current_win(M.center_id)
-    vim.api.nvim_win_set_width(0, width)
+    M.left_id = create_blank_buffer("H")
+
+    vim.api.nvim_win_set_width(M.right_id, right_buffer_width)
+    vim.api.nvim_win_set_width(M.left_id, left_buffer_width)
+    vim.api.nvim_set_current_win(M.main_id)
 
     return true
 end
@@ -56,36 +56,71 @@ function M.silent_close_windows(window_ids)
 end
 
 
-function M.toggle_centered_buffer(width)
-    if centered then
+function M.toggle_center(width)
+    if M.centered then
         M.silent_close_windows({M.left_id, M.right_id})
         M.left_id = nil
         M.right_id = nil
-        vim.api.nvim_set_current_win(M.center_id)
-        centered = false
+        vim.api.nvim_set_current_win(M.main_id)
+        M.centered = false
     else
-        centered = create_centered_buffer(width)
+        M.centered = create_centered_buffer(width)
     end
 end
 
 
--- Close all windows that are not the center and re-center the main window.
-function M.close_others_and_recenter()
-    vim.api.nvim_set_current_win(M.center_id)
-    vim.cmd("only")
-    centered = false
-    M.toggle_centered_buffer(M.center_width)
-end
-
 function M.quit_vertical_split_and_toggle()
     vim.cmd("q")
-    M.toggle_centered_buffer(M.center_width)
+    M.toggle_center(M.center_width)
 end
 
 
 function M.vertical_split_and_toggle(width)
-    M.toggle_centered_buffer(width)
+    M.toggle_center(width)
     vim.cmd("vs")
+end
+
+
+-- recenter all content
+function M.recenter()
+    M.centering = true
+    if M.left_id ~= nil then
+        vim.api.nvim_set_current_win(M.left_id)
+        vim.cmd("q")
+        M.left_id = nil
+    end
+    if M.right_id ~= nil then
+        vim.api.nvim_set_current_win(M.right_id)
+        vim.cmd("q")
+        M.right_id = nil
+    end
+    M.centered = false
+    M.toggle_center(M.center_width)
+    M.centering = false
+end
+
+
+local function get_centered_width()
+    local total_width = vim.o.columns
+    local left_width = 0
+    local right_width = 0
+    if M.left_id ~= nil then
+        left_width = vim.api.nvim_win_get_width(M.left_id)
+    end
+    if M.right_id ~= nil then
+        right_width = vim.api.nvim_win_get_width(M.right_id)
+    end
+    return total_width - (left_width + right_width)
+end
+
+
+function M.do_on_resize()
+    if not M.auto_center or M.centering then
+        return
+    end
+    if M.center_width ~= get_centered_width() then
+        M.recenter()
+    end
 end
 
 
@@ -106,7 +141,7 @@ local function setup_autocmd()
     vim.cmd([[
         augroup DetectVimResize
             autocmd! * <buffer>
-            autocmd VimResized * Center
+            autocmd WinResized * lua require('centerterm').do_on_resize()
         augroup END
     ]])
 end
@@ -115,7 +150,17 @@ end
 local function set_vim_commands()
     vim.cmd(
     "command! Center lua require('centerterm')"..
-    ".toggle_centered_buffer(vim.g.centerterm_width)"
+    ".toggle_center(vim.g.centerterm_width)"
+    )
+    -- Activate auto-center
+    vim.cmd(
+    "command! CenterOn lua require('centerterm')"..
+    ".auto_center = true"
+    )
+    -- Deactivate auto-center
+    vim.cmd(
+    "command! CenterOff lua require('centerterm')"..
+    ".auto_center = false"
     )
     -- Recenter the main window after closing all others
     vim.cmd(
