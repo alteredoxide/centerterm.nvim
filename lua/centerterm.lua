@@ -121,12 +121,13 @@ end
 
 
 function M.quit_vertical_split_and_toggle()
+    M.auto_center = true
     vim.cmd("q")
-    M.toggle_center(M.center_width)
 end
 
 
 function M.vertical_split_and_toggle(width)
+    M.auto_center = false
     M.toggle_center(width)
     vim.cmd("vs")
 end

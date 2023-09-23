@@ -61,19 +61,14 @@ This is also not necessarily very useful at the moment.
 two outer splits.</br>
 
 _Assumptions_
-- Auto-centering is off
-- Your original/main view is the active split when you run the command.
-- You only have your center split and the two outer/padding splits open.
 - See assumption for `:Center`
 
 
-**`:Vx`** will quit the currently active vertical split and reactive the
+**`:Vx`** will quit the currently active window and reactivate the
 centering effect.</br>
 
 _Assumptions_
-- Only two vertical splits are currently open
 - See last assumption for `:Center`
-- It is ok to have auto-centering on for this command
 
 The next couple commands aren't custom, but they are useful.
 **`:wqa`** write and quit all -- convenient to close all splits when centered.
