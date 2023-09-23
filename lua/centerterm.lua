@@ -80,7 +80,23 @@ local function create_centered_buffer(width)
 end
 
 
-local function silent_close_window(win_id, force)
+local function get_modified_buffer_names()
+    local modified_buffers = {}
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_get_option(buf, "modified") then
+            table.insert(modified_buffers, vim.api.nvim_buf_get_name(buf))
+        end
+    end
+    return modified_buffers
+end
+
+
+local function modified_buffers_string()
+    return table.concat(get_modified_buffer_names(), "\n")
+end
+
+
+local function try_close_window(win_id, force)
     force = force or false
     local _, err = pcall(function()
         -- Using set current followed by cmd because it provides the
@@ -95,21 +111,27 @@ local function silent_close_window(win_id, force)
         end
     end)
     if err then
-        print(win_id, err)
+        if string.match(err, "No write since last change") then
+            vim.api.nvim_err_writeln(
+                "E37: No write since last chage:\n"..modified_buffers_string()
+            )
+        else
+            vim.api.nvim_err_writeln(err)
+        end
     end
 end
 
 
-function M.silent_close_windows(window_ids, force)
+function M.try_close_windows(window_ids, force)
     for _, win_id in ipairs(window_ids) do
-        silent_close_window(win_id, force)
+        try_close_window(win_id, force)
     end
 end
 
 
 function M.toggle_center(width)
     if M.centered then
-        M.silent_close_windows({M.left_id, M.right_id})
+        M.try_close_windows({M.left_id, M.right_id})
         M.left_id = nil
         M.right_id = nil
         vim.api.nvim_set_current_win(M.get_main())
@@ -136,7 +158,7 @@ end
 -- recenter all content
 function M.recenter()
     M.centering = true
-    M.silent_close_windows({M.left_id, M.right_id})
+    M.try_close_windows({M.left_id, M.right_id})
     M.left_id = nil
     M.right_id = nil
     M.centered = false
