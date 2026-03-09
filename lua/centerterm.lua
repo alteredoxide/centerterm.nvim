@@ -17,6 +17,23 @@ local function is_padding_win(win)
 end
 
 
+local function padding_windows_valid()
+    return M.left_id and vim.api.nvim_win_is_valid(M.left_id)
+        and M.right_id and vim.api.nvim_win_is_valid(M.right_id)
+end
+
+
+local function count_non_padding_wins()
+    local count = 0
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if not is_padding_win(win) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+
 -- return the first win id that is not one of the padding windows
 local function get_first_non_padding_win()
     for _, win in ipairs(vim.api.nvim_list_wins()) do
@@ -130,6 +147,8 @@ end
 
 
 function M.toggle_center(width)
+    M.centered = padding_windows_valid()
+    
     if M.centered then
         M.try_close_windows({M.left_id, M.right_id})
         M.left_id = nil
@@ -142,15 +161,39 @@ function M.toggle_center(width)
 end
 
 
-function M.quit_vertical_split_and_toggle()
+function M.center_off()
+    M.auto_center = false
+    if padding_windows_valid() then
+        M.toggle_center(M.center_width)
+    end
+    M.centered = false
+end
+
+
+function M.center_on()
     M.auto_center = true
+    if not padding_windows_valid() then
+        M.toggle_center(M.center_width)
+    end
+    M.centered = true
+end
+
+
+function M.quit_vertical_split_and_close_center()
+    local non_padding_count = count_non_padding_wins()
+    if non_padding_count == 2 then
+        M.auto_center = true
+    end
     vim.cmd("q")
 end
 
 
-function M.vertical_split_and_toggle(width)
+function M.vertical_split_and_close_center(width)
     M.auto_center = false
-    M.toggle_center(width)
+    if padding_windows_valid() then
+        M.toggle_center(width)
+    end
+    M.centered = false
     vim.cmd("vs")
 end
 
@@ -227,13 +270,23 @@ local function set_vim_commands()
     )
     -- Activate auto-center
     vim.cmd(
-    "command! CenterOn lua require('centerterm')"..
+    "command! CenterAutoOn lua require('centerterm')"..
     ".auto_center = true"
+    )
+    -- Activate centering and create padding windows
+    vim.cmd(
+    "command! CenterOn lua require('centerterm')"..
+    ".center_on()"
     )
     -- Deactivate auto-center
     vim.cmd(
-    "command! CenterOff lua require('centerterm')"..
+    "command! CenterAutoOff lua require('centerterm')"..
     ".auto_center = false"
+    )
+    -- Deactivate centering and close padding windows
+    vim.cmd(
+    "command! CenterOff lua require('centerterm')"..
+    ".center_off()"
     )
     -- Recenter the main window after closing all others
     vim.cmd(
@@ -243,12 +296,12 @@ local function set_vim_commands()
     -- Create new vertical split and toggle Center
     vim.cmd(
     "command! Vs lua require('centerterm')"..
-    ".vertical_split_and_toggle(vim.g.centerterm_width)"
+    ".vertical_split_and_close_center(vim.g.centerterm_width)"
     )
     -- Quit current vertical split and toggle Center
     vim.cmd(
     "command! Vx lua require('centerterm')"..
-    ".quit_vertical_split_and_toggle()"
+    ".quit_vertical_split_and_close_center()"
     )
     -- Set current window as main
     vim.cmd(
