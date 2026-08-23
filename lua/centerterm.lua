@@ -17,16 +17,30 @@ local function is_padding_win(win)
 end
 
 
+local function is_quickfix_win(win)
+    if not vim.api.nvim_win_is_valid(win) then
+        return false
+    end
+    local buf = vim.api.nvim_win_get_buf(win)
+    return vim.bo[buf].buftype == "quickfix"
+end
+
+
+local function is_content_win(win)
+    return not is_padding_win(win) and not is_quickfix_win(win)
+end
+
+
 local function padding_windows_valid()
     return M.left_id and vim.api.nvim_win_is_valid(M.left_id)
         and M.right_id and vim.api.nvim_win_is_valid(M.right_id)
 end
 
 
-local function count_non_padding_wins()
+local function count_content_wins()
     local count = 0
     for _, win in ipairs(vim.api.nvim_list_wins()) do
-        if not is_padding_win(win) then
+        if is_content_win(win) then
             count = count + 1
         end
     end
@@ -34,13 +48,14 @@ local function count_non_padding_wins()
 end
 
 
--- return the first win id that is not one of the padding windows
-local function get_first_non_padding_win()
+-- return the first win id that is a content (non-padding, non-quickfix) window
+local function get_first_content_win()
     for _, win in ipairs(vim.api.nvim_list_wins()) do
-        if not is_padding_win(win) then
+        if is_content_win(win) then
             return win
         end
     end
+    return nil
 end
 
 
@@ -52,47 +67,54 @@ end
 function M.get_main()
     if M.main_id ~= nil then
         for _, win in ipairs(vim.api.nvim_list_wins()) do
-            if win == M.main_id then
+            if win == M.main_id and is_content_win(win) then
                 return M.main_id
             end
         end
     end
-    M.main_id = get_first_non_padding_win()
+    M.main_id = get_first_content_win()
     return M.main_id
 end
 
 
-local function create_blank_buffer(pos)
-    vim.cmd("vnew")
-    vim.api.nvim_buf_set_option(0, 'buftype', 'nofile')
-    vim.api.nvim_buf_set_option(0, 'bufhidden', 'wipe')
-    vim.api.nvim_buf_set_option(0, 'swapfile', false)
-    vim.api.nvim_win_set_option(0, 'number', false)
-    vim.api.nvim_win_set_option(0, 'relativenumber', false)
+local function set_padding_buffer_options()
+    vim.bo[0].buftype = 'nofile'
+    vim.bo[0].bufhidden = 'wipe'
+    vim.bo[0].swapfile = false
+    vim.wo[0].number = false
+    vim.wo[0].relativenumber = false
     vim.opt.fillchars:append("vert: ")
     vim.opt.fillchars:append({ eob = ' ' })
-    vim.cmd(string.format("wincmd %s", pos))
-    return vim.api.nvim_get_current_win()
 end
 
 
 local function create_centered_buffer(width)
     local total_width = vim.o.columns
     if total_width < width + 2 then
-      return false
+        return false
+    end
+    local main = M.get_main()
+    if not main then
+        return false
     end
     local left_buffer_width = math.floor((total_width - width) / 2)
     local right_buffer_width = total_width - width - left_buffer_width
 
-    -- right padding
-    M.right_id = create_blank_buffer("L")
-    -- left padding
-    M.left_id = create_blank_buffer("H")
-
+    -- right padding: vertical split to the right of main, same row
+    vim.api.nvim_set_current_win(main)
+    vim.cmd("rightbelow vnew")
+    set_padding_buffer_options()
+    M.right_id = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_width(M.right_id, right_buffer_width)
-    vim.api.nvim_win_set_width(M.left_id, left_buffer_width)
-    vim.api.nvim_set_current_win(M.get_main())
 
+    -- left padding: vertical split to the left of main, same row
+    vim.api.nvim_set_current_win(main)
+    vim.cmd("leftabove vnew")
+    set_padding_buffer_options()
+    M.left_id = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_width(M.left_id, left_buffer_width)
+
+    vim.api.nvim_set_current_win(main)
     return true
 end
 
@@ -100,7 +122,7 @@ end
 local function get_modified_buffer_names()
     local modified_buffers = {}
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-        if vim.api.nvim_buf_get_option(buf, "modified") then
+        if vim.bo[buf].modified then
             table.insert(modified_buffers, vim.api.nvim_buf_get_name(buf))
         end
     end
@@ -180,8 +202,8 @@ end
 
 
 function M.quit_vertical_split_and_close_center()
-    local non_padding_count = count_non_padding_wins()
-    if non_padding_count == 2 then
+    local content_count = count_content_wins()
+    if content_count == 2 then
         M.auto_center = true
     end
     vim.cmd("q")
@@ -240,6 +262,15 @@ function M.do_on_resize()
 end
 
 
+function M.on_win_closed()
+    vim.schedule(function()
+        if count_content_wins() == 0 then
+            pcall(vim.cmd, "qa")
+        end
+    end)
+end
+
+
 function M.set_default_keybindings()
     local bind_opts = { noremap=true, silent=true }
     -- Toggle center
@@ -255,9 +286,10 @@ end
 
 local function setup_autocmd()
     vim.cmd([[
-        augroup DetectVimResize
-            autocmd! * <buffer>
+        augroup Centerterm
+            autocmd!
             autocmd WinResized * lua require('centerterm').do_on_resize()
+            autocmd WinClosed * lua require('centerterm').on_win_closed()
         augroup END
     ]])
 end
